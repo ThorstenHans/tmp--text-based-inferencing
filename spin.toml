@@ -24,6 +24,5 @@ base_url = "{{ base_url }}"
 model = "{{ model }}"
 
 [component.text-based-inferencing.build]
-command = ["npm install", "npm run build"]
+command = ["rm -rf build", "npm install", "npm run build"]
 watch = ["src/**/*.ts"]
-

@@ -42,6 +42,7 @@ export async function personalize_product(requestBody: ArrayBuffer) {
 <general_product_description>{general}</general_product_descrition>
 `);
     const chain = prompt.pipe(llm);
+    console.log("Generating personalized content")
     let llmResponse = await chain.invoke({
       name: payload.name,
       gender: payload.gender,
@@ -49,7 +50,6 @@ export async function personalize_product(requestBody: ArrayBuffer) {
       likes: payload.likes.join(", "),
       general: payload.general
     });
-    console.log("LLM got back with something");
     llmResponse = extractAndRemoveThoughts(llmResponse);
     return new Response(JSON.stringify({ "personalized": llmResponse }), { status: 200, headers: { "content-type": "application/json" } });
 

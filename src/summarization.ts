@@ -1,6 +1,7 @@
 import { Variables } from "@fermyon/spin-sdk";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { Ollama } from "@langchain/ollama";
+import { extractAndRemoveThoughts } from "./helpers";
 
 interface SummarizationRequestModel {
   text: string
@@ -35,12 +36,12 @@ User: Summarize the following text: {text}
 `);
     const chain = prompt.pipe(llm);
     console.log("Ask LLM to summarize text");
-    let llm_response = await chain.invoke({
+    let llmResponse = await chain.invoke({
       text: payload.text
     });
     console.log("LLM got back with something");
-    llm_response = llm_response.replace(/<think>[\s\S]*?<\/think>\n?/g, "");
-    return new Response(JSON.stringify({ "summary": llm_response }), { status: 200, headers: { "content-type": "application/json" } });
+    llmResponse = extractAndRemoveThoughts(llmResponse);
+    return new Response(JSON.stringify({ "summary": llmResponse }), { status: 200, headers: { "content-type": "application/json" } });
   } catch (error) {
     console.log(`Error while summarizing text: ${JSON.stringify(error)}`);
     return new Response(null, { status: 500 });

@@ -48,10 +48,10 @@ export async function sentiment_analysis(requestBody: ArrayBuffer) {
 <input>{input}</input>
 `);
     const chain = prompt.pipe(llm);
+    console.log("Performing sentiment analysis")
     let llmResponse = await chain.invoke({
       input: payload.input
     });
-    console.log("LLM got back with something");
     llmResponse = extractAndRemoveThoughts(llmResponse);
 
     llmResponse = llmResponse.replace(/\n/g, "").replace(/\t/g, "");
