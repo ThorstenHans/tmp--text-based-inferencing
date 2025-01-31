@@ -1,0 +1,29 @@
+spin_manifest_version = 2
+
+[application]
+authors = ["Thorsten Hans <thorsten.hans@fermyon.com>"]
+description = ""
+name = "text-based-inferencing"
+version = "0.1.0"
+
+[variables]
+base_url = { required = true }
+model = { required = true }
+
+[[trigger.http]]
+route = "/..."
+component = "text-based-inferencing"
+
+[component.text-based-inferencing]
+source = "dist/text-based-inferencing.wasm"
+exclude_files = ["**/node_modules"]
+allowed_outbound_hosts = ["{{ base_url }}"]
+
+[component.text-based-inferencing.variables]
+base_url = "{{ base_url }}"
+model = "{{ model }}"
+
+[component.text-based-inferencing.build]
+command = ["npm install", "npm run build"]
+watch = ["src/**/*.ts"]
+
