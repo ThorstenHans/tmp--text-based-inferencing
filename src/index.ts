@@ -1,25 +1,10 @@
-// For AutoRouter documentation refer to https://itty.dev/itty-router/routers/autorouter
-import { Variables } from '@fermyon/spin-sdk';
-import { Ollama } from '@langchain/ollama';
 import { AutoRouter } from 'itty-router';
-import { personalize_product } from './personalization';
-import { sentiment_analysis } from './sentiment_analysis';
-import { summarize_text } from './summarization';
+import { inference, InferencingRequest } from './inference';
+import { getReadme } from './readme';
+import 'abortcontroller-polyfill/dist/polyfill-patch-fetch';
 
-let router = AutoRouter();
 const decoder = new TextDecoder();
-
-// @ts-ignore
-globalThis.AbortController = class {
-  constructor() {
-    //@ts-ignore
-    this.signal = { aborted: false, addEventListener: () => { }, removeEventListener: () => { } };
-  }
-  abort() {
-    //@ts-ignore
-    this.signal.aborted = true;
-  }
-}
+let router = AutoRouter();
 
 //@ts-ignore
 addEventListener('fetch', async (event: FetchEvent) => {
@@ -27,64 +12,106 @@ addEventListener('fetch', async (event: FetchEvent) => {
 });
 
 router
-  .get("/", getIndex)
-  .post("/summarize", async (req) => summarize_text(await req.arrayBuffer()))
-  .post("/sentiment_analysis", async (req) => sentiment_analysis(await req.arrayBuffer()))
-  .post("/personalize_product", async (req) => personalize_product(await req.arrayBuffer()));
+  .get("/", () => getReadme())
+  .post("/summarize", async (req) => summarizeText(await req.arrayBuffer()))
+  .post("/sentiment_analysis", async (req) => performSentimentAnalysis(await req.arrayBuffer()))
+  .post("/personalize_product", async (req) => personalizeContent(await req.arrayBuffer()))
+  .post("/extract_facts", async (req) => extractFacts(await req.arrayBuffer()));
 
-function getIndex() {
-  const index_html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instructions</title>
-    <style>
-        body {
-            font-family: Verdana, Geneva, Tahoma, sans-serif;
-            font-size: 18px;
-            line-height: 1.4;
-        }
-        pre {
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: 500;
-            font-size: 14px;
-            line-height: 1.1;
-            background-color: lightgray;
-            border: 1px solid darkgray;
-            border-radius: 5px;
-            padding: 10px;
-            text-wrap: wrap;
-        }
-    </style>
-</head>
-<body>
-    <h2>Text Summarization</h2>
-    <pre>export APP_URL=&lt;SET_YOUR_APP_URL&gt;
-
-curl -X POST $APP_URL/summarize \
-  -H 'Content-Type: application/json' \
-  --data '{"text": "Azure Kubernetes Service (AKS) is a managed Kubernetes service that you can use to deploy and manage containerized applications. You need minimal container orchestration expertise to use AKS. AKS reduces the complexity and operational overhead of managing Kubernetes by offloading much of that responsibility to Azure. AKS is an ideal platform for deploying and managing containerized applications that require high availability, scalability, and portability, and for deploying applications to multiple regions, using open-source tools, and integrating with existing DevOps tools.\n\nThis article is intended for platform administrators or developers who are looking for a scalable, automated, managed Kubernetes solution.\n\nOverview of AKS\n\nAKS reduces the complexity and operational overhead of managing Kubernetes by shifting that responsibility to Azure. When you create an AKS cluster, Azure automatically creates and configures a control plane for you at no cost. The Azure platform manages the AKS control plane, which is responsible for the Kubernetes objects and worker nodes that you deploy to run your applications. Azure takes care of critical operations like health monitoring and maintenance, and you only pay for the AKS nodes that run your applications." }'
-    </pre>
-    <hr />
-    
-    <h2>Sentiment Analysis</h2>
-    <pre>export APP_URL=&lt;SET_YOUR_APP_URL&gt;
-
-curl -X POST $APP_URL/sentiment_analysis \
--H 'Content-Type: application/json' \
---data '{ "input": "tuna sashimi is great!" }'
-    </pre>
-    <hr />
-    
-    <h2>Personalized Product Descriptions</h2>
-    <pre>export APP_URL=&lt;SET_YOUR_APP_URL&gt;
-
-curl -X POST $APP_URL/personalize_product \
--H 'Content-Type: application/json' \
---data '{ "general": "Nebula SoundPod – 360° Immersive Audio Speaker\n\nExperience studio-quality sound wherever you go with the Nebula SoundPod. This portable, waterproof Bluetooth speaker delivers deep bass and crisp treble with 360° surround sound technology. Perfect for parties, outdoor adventures, or relaxing at home.", "name": "Thorsten", "gender": "male", "age": 41, "likes": ["running", "mountain biking"] }'
-    </pre>
-</body>
-</html>`;
-  return new Response(index_html, { status: 200, headers: { "content-type": "text/html" } });
+async function performSentimentAnalysis(requestBody: ArrayBuffer): Promise<Response> {
+  try {
+    const payload = JSON.parse(decoder.decode(requestBody)) as InferencingRequest;
+    const res = await inference(payload, `<context>
+You're an assitant for performing sentiment analysis.
+Given a random text input, answer with the emotional tone of the input
+Valid answers are positive, negative, neutral
+Don't share your thought process
+Do not repeat the input
+Do not use control characters like newline, tabs or others
+Answer with a single word only
+</context>
+<samples>
+ <sample>
+   <input>I love your new glasses.</input>
+   <answer>positive</answer>
+  </sample>
+  <sample>
+    <input>I think EVERYONE hates me ON HERE.</input>
+    <answer>negative</answer>
+  </sample>
+  <sample>
+    <input>Hi there. I agree! Small children should be running about happy, not breaking down in tears</input>
+    <answer>positive</answer>
+  </sample>
+</samples>
+<user>{userPrompt}</user>`);
+    return new Response(JSON.stringify(res), { status: 200, headers: { "content-type": "application/json" } });
+  } catch (error) {
+    return new Response("Error while inferencing", { status: 500 });
+  }
 }
+
+async function personalizeContent(requestBody: ArrayBuffer): Promise<Response> {
+  try {
+    const payload = JSON.parse(decoder.decode(requestBody)) as InferencingRequest;
+    const res = await inference(payload, `<context>
+You're an expert in creating personalized product descriptions. 
+Given essential information about the potential customer and a general text, generate a personalized variation of the text provided by the user
+- Directly address the customer
+- You may not use placeholders in your answer
+</context>
+<personalization>
+- Customer Name: {name}
+- Customer Gender: {gender}
+- Customer Age: {age}
+- Customer likes: {likes}
+</personalization>
+
+<user>Personalize the following test:
+{userPrompt}
+</user>`);
+    return new Response(JSON.stringify(res), { status: 200, headers: { "content-type": "application/json" } });
+  } catch (error) {
+    return new Response("Error while inferencing", { status: 500 });
+  }
+}
+
+async function extractFacts(requestBody: ArrayBuffer): Promise<Response> {
+  try {
+    const payload = JSON.parse(decoder.decode(requestBody)) as InferencingRequest;
+    const res = await inference(payload, `<context>
+You're an expert in extracting hard facts from text provided by users.
+You're not allowed to generate new facts
+</context>
+<user>Extract facts from the following text:
+{userPrompt}
+</user>`);
+    return new Response(JSON.stringify(res), { status: 200, headers: { "content-type": "application/json" } });
+  } catch (error) {
+    return new Response("Error while inferencing", { status: 500 });
+  }
+}
+
+async function summarizeText(requestBody: ArrayBuffer): Promise<Response> {
+  try {
+    const payload = JSON.parse(decoder.decode(requestBody)) as InferencingRequest;
+    const res = await inference(payload, `<context>
+- You're an expert in summarizing text without changing the meaning of the text. 
+- Summarize as efficient as possible. 
+- Use same vocabulary as provided by the user
+- You're also not allowed to share your thoughts
+<formatting_rules>
+- Summary may not be longer than user provided input
+- Answer with Summary only
+</formatting_rules>
+</context>
+<user>
+Summarize the following text
+{userPrompt}
+</user>`);
+    return new Response(JSON.stringify(res), { status: 200, headers: { "content-type": "application/json" } });
+  } catch (error) {
+    return new Response("Error while inferencing", { status: 500 });
+  }
+}
+

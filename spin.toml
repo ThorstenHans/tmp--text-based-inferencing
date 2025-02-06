@@ -7,6 +7,9 @@ name = "text-based-inferencing"
 version = "0.1.0"
 
 [variables]
+# base_url = { default = "http://173.255.228.190:11434" }
+# model = { default = "deepseek-r1:latest" }
+
 base_url = { required = true }
 model = { required = true }
 
@@ -17,7 +20,7 @@ component = "text-based-inferencing"
 [component.text-based-inferencing]
 source = "dist/text-based-inferencing.wasm"
 exclude_files = ["**/node_modules"]
-allowed_outbound_hosts = ["{{ base_url }}"]
+allowed_outbound_hosts = ["{{ base_url }}", "http://173.255.228.190:11434"]
 
 [component.text-based-inferencing.variables]
 base_url = "{{ base_url }}"

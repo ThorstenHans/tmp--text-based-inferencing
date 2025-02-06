@@ -22,6 +22,7 @@
     "@fermyon/spin-sdk": "https://github.com/karthik2804/spin-js-sdk#precompile_in_sdk",
     "@langchain/core": "^0.3.37",
     "@langchain/ollama": "^0.1.5",
+    "abortcontroller-polyfill": "^1.7.8",
     "itty-router": "^5.0.18"
   }
 }
